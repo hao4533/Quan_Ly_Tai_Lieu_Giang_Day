@@ -129,6 +129,73 @@ public class FolderDao extends BaseDao<Folder> {
         }
         return list;
     }
+//Kiểm tra thư mục đã tồn tại chưa
+
+    public boolean isFolderExist(int userId, int parentId, String name) {
+        String sql;
+        if (parentId == 0) {
+            sql = "SELECT 1 FROM folders WHERE user_id = ? AND parent_id IS NULL AND name = ?";
+        } else {
+            sql = "SELECT 1 FROM folders WHERE user_id = ? AND parent_id = ? AND name = ?";
+        }
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            if (parentId == 0) {
+                pstmt.setString(2, name.trim());
+            } else {
+                pstmt.setInt(2, parentId);
+                pstmt.setString(3, name.trim());
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next(); // Trả về true nếu tên này đã tồn tại chính xác
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    //Kiểm tra thư mục đã tồn tại khi cập nhật không
+    public boolean isFolderExistForUpdate(int userId, int parentId, String name, int currentFolderId) {
+        String sql;
+        // Thêm điều kiện AND id <> ? để loại trừ chính nó ra khi kiểm tra trùng tên
+        if (parentId == 0) {
+            sql = "SELECT 1 FROM folders WHERE user_id = ? AND parent_id IS NULL AND name = ? AND id <> ?";
+        } else {
+            sql = "SELECT 1 FROM folders WHERE user_id = ? AND parent_id = ? AND name = ? AND id <> ?";
+        }
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            if (parentId == 0) {
+                pstmt.setString(2, name.trim());
+                pstmt.setInt(3, currentFolderId);
+            } else {
+                pstmt.setInt(2, parentId);
+                pstmt.setString(3, name.trim());
+                pstmt.setInt(4, currentFolderId);
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    //Kiểm tra người dùng có phải chủ sở hữu thư mục hay không
+    public boolean isFolderOwner(int id, int user_id) {
+        String sql = "SELECT * FROM folders WHERE id = ? AND user_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, user_id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 
     //Lấy parent_id dựa theo id của folder
     public int getParentIdById(int id) {
@@ -205,6 +272,7 @@ public class FolderDao extends BaseDao<Folder> {
             return false;
         }
     }
+
     //Hàm xóa có kiểm tra quyền sở hữu của người dùng
     public boolean deleteSecure(int id, int user_id) {
         String sql = "DELETE FROM folders WHERE id = ? AND user_id = ?";
