@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
  * @author Ryo
  */
 public class Document {
+
     private int id;
     private String original_name;
     private String physical_path;
@@ -19,13 +20,14 @@ public class Document {
     private int folder_id;
     private int user_id;
     private LocalDateTime updated_at;
-    
+
     // Hàm khởi tạo không tham số
     public Document() {
     }
-    // Hàm khởi tạo đầy đủ tham số
-    public Document(int id, String original_name, String physical_path, String file_extension, 
-                    long file_size_bytes, int folder_id, int user_id, LocalDateTime updated_at) {
+
+    //Constructor đầy đủ tham số (Dùng khi đọc từ Database)
+    public Document(int id, String original_name, String physical_path, String file_extension,
+            long file_size_bytes, int folder_id, int user_id, LocalDateTime updated_at) {
         this.id = id;
         this.original_name = original_name;
         this.physical_path = physical_path;
@@ -34,8 +36,20 @@ public class Document {
         this.folder_id = folder_id;
         this.user_id = user_id;
         this.updated_at = updated_at;
-    }
+    }    
     
+    //Constructor không cần ID (Dùng khi tạo đối tượng mới để chuẩn bị lưu vào DB
+    public Document(String original_name, String physical_path, String file_extension,
+            long file_size_bytes, int folder_id, int user_id, LocalDateTime updated_at) {
+        this.original_name = original_name;
+        this.physical_path = physical_path;
+        this.file_extension = file_extension;
+        this.file_size_bytes = file_size_bytes;
+        this.folder_id = folder_id;
+        this.user_id = user_id;
+        this.updated_at = updated_at;
+    }
+
     //Getter và setter
     public int getId() {
         return id;

@@ -21,9 +21,17 @@ public class Folder {
     public Folder() {
     }
     
-    // Hàm khởi tạo đầy đủ tham số
+    //Constructor đầy đủ tham số (Dùng lấy dữ liệu từ DB) 
     public Folder(int id, String name, int parent_id, int user_id, LocalDateTime create_at) {
         this.id = id;
+        this.name = name;
+        this.parent_id = parent_id;
+        this.user_id = user_id;
+        this.create_at = create_at;
+    }
+
+    //Constructor tạo thư mục mới (Không cần truyền ID tự tăng)
+    public Folder(String name, int parent_id, int user_id, LocalDateTime create_at) {
         this.name = name;
         this.parent_id = parent_id;
         this.user_id = user_id;

@@ -23,7 +23,7 @@
             <form action="${pageContext.request.contextPath}/login" method="POST">
                 <div class="input-group">
                     <label for="login-username">Email</label>
-                    <input type="text" id="login-username" name="username" placeholder="Nhập tài khoản..." required>
+                    <input type="text" id="login-email" name="email" placeholder="Nhập tài khoản..." required>
                 </div>
                 <div class="input-group">
                     <label for="login-password">Mật khẩu</label>

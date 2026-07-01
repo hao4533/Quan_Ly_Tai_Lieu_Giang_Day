@@ -6,12 +6,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 import model.User;
 
-public class UserDao extends BaseDao {
+public class UserDao extends BaseDao<User> {
+
+    // Constructor bắt buộc để truyền JNDI Name lên BaseDao
+    public UserDao(String jndiName) {
+        super(jndiName);
+    }
 
     // ========== HASH MẬT KHẨU ==========
-    // Dùng SHA-256 để mã hóa mật khẩu trước khi lưu vào DB
+    // Dùng SHA-256 để mã hóa mật khẩu (Xóa @Override vì đây là hàm tự định nghĩa)
     public static String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -27,12 +34,10 @@ public class UserDao extends BaseDao {
     }
 
     // ========== ĐĂNG KÝ ==========
-    // Lưu user mới vào bảng users trong j2ee_users_db
     public boolean registerUser(String email, String passwordHash, String fullName) {
         String sql = "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)";
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, email);
             ps.setString(2, passwordHash);
@@ -40,59 +45,100 @@ public class UserDao extends BaseDao {
 
             return ps.executeUpdate() > 0;
 
-        } catch (SQLException e) {
+        } catch (Exception e) { // Đổi sang Exception tổng quát vì getConnection() throws Exception
             e.printStackTrace();
             return false;
         }
     }
 
     // ========== KIỂM TRA EMAIL ĐÃ TỒN TẠI ==========
-    // Dùng trước khi đăng ký để tránh trùng email
     public boolean isEmailExists(String email) {
         String sql = "SELECT id FROM users WHERE email = ?";
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            return rs.next(); // true nếu tìm thấy
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next(); // true nếu tìm thấy
+            }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // ========== ĐĂNG NHẬP ==========
-    // Cho phép login bằng email hoặc full_name, so sánh password đã hash
-    public User login(String usernameOrEmail, String password) {
+    // ========== ĐĂNG NHẬP CHỈ BẰNG EMAIL ==========
+    public User login(String email, String password) {
         String passwordHash = hashPassword(password);
 
-        // Tìm user theo email HOẶC full_name
-        String sql = "SELECT id, email, password_hash, full_name FROM users "
-                   + "WHERE (email = ? OR full_name = ?) AND password_hash = ?";
+        // SQL chỉ lọc duy nhất theo cột email
+        String sql = "SELECT id, email, password_hash, full_name FROM users WHERE email = ? AND password_hash = ?";
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, usernameOrEmail);
-            ps.setString(2, usernameOrEmail);
-            ps.setString(3, passwordHash);
+            ps.setString(1, email.trim());
+            ps.setString(2, passwordHash);
 
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new User(
-                    rs.getInt("id"),
-                    rs.getString("email"),
-                    rs.getString("password_hash"),
-                    rs.getString("full_name")
-                );
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new User(
+                            rs.getInt("id"),
+                            rs.getString("email"),
+                            rs.getString("password_hash"),
+                            rs.getString("full_name")
+                    );
+                }
             }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return null; // Không tìm thấy -> sai tài khoản hoặc mật khẩu
+        return null; // Không tìm thấy hoặc sai thông tin
+    }
+
+    @Override
+    public List<User> getAll() {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public User getById(int id) {
+        return null;
+    }
+
+    @Override
+    public boolean insert(User model) {
+        if (model == null) {
+            return false;
+        }
+
+        // Đảm bảo các tên cột (email, password_hash, full_name) viết thường hoàn toàn đúng chuẩn Postgres
+        String sql = "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, model.getEmail());
+            ps.setString(2, model.getPasswordHash());
+            ps.setString(3, model.getFullName());
+
+            return ps.executeUpdate() > 0;
+
+        } catch (Exception e) {
+            System.err.println("BIẾN CỐ KẾT NỐI: LỖI THỰC THI TẠI TẦNG DAO");
+            e.printStackTrace(); // In ra toàn bộ StackTrace để biết chính xác lỗi sai tên bảng hay sai kiểu dữ liệu
+            return false;
+        }
+    }
+
+    @Override
+    public boolean update(User model) {
+        // Tùy chọn triển khai sau
+        return false;
+    }
+
+    @Override
+    public boolean delete(int id) {
+        return false;
     }
 }
