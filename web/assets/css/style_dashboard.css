@@ -1,0 +1,330 @@
+/* ================= KHOÁI KHỞI TẠO (RESET CSS) ================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #1f1f1f;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ================= 1. HEADER (Thanh trên cùng) ================= */
+.header {
+    height: 64px;
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #5f6368;
+}
+.brand i {
+    color: #f4b400;
+    font-size: 24px;
+}
+
+.search-container {
+    flex: 1;
+    max-width: 720px;
+    margin: 0 24px;
+    position: relative;
+}
+.search-container i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #5f6368;
+}
+.search-input {
+    width: 100%;
+    padding: 12px 12px 12px 48px;
+    background-color: #eaf1fb;
+    border: none;
+    border-radius: 24px;
+    font-size: 16px;
+    outline: none;
+    transition: background-color 0.2s;
+}
+.search-input:focus {
+    background-color: #ffffff;
+    box-shadow: 0 1px 1px 0 rgba(65,69,73,0.3), 0 1px 3px 1px rgba(65,69,73,0.15);
+}
+.user-profile img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* ================= 2. MAIN LAYOUT (Bố cục chính) ================= */
+.main-layout {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 64px);
+}
+
+/* --- SIDEBAR (Thanh bên trái) --- */
+.sidebar {
+    width: 256px;
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.btn-new {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background-color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    width: fit-content;
+    margin-left: 8px;
+    margin-bottom: 16px;
+    transition: background-color 0.2s;
+}
+.btn-new:hover {
+    background-color: #f1f3f4;
+}
+
+.menu-list {
+    list-style: none;
+}
+.menu-item a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    color: #444746;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 0 20px 20px 0;
+    margin-bottom: 4px;
+}
+.menu-item.active a, .menu-item a:hover {
+    background-color: #e8f0fe;
+    color: #0b57d0;
+}
+
+.storage-box {
+    padding: 16px;
+    font-size: 13px;
+    color: #444746;
+}
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background-color: #e0e0e0;
+    border-radius: 2px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background-color: #0b57d0;
+    width: 45%; /* % Dung lượng thực tế */
+}
+
+/* --- CONTENT AREA (Vùng hiển thị file ở giữa) --- */
+.content-container {
+    flex: 1;
+    background-color: #ffffff;
+    border-radius: 16px 0 0 0;
+    border: 1px solid #e0e0e0;
+    border-bottom: none;
+    padding: 24px;
+    overflow-y: auto;
+}
+.content-title {
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 24px;
+}
+.section-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #5f6368;
+    margin-bottom: 16px;
+    margin-top: 24px;
+}
+
+/* ================= 3. CSS GRID CHO FILE & FOLDER ================= */
+/* Tự động tính toán số cột dựa trên kích thước màn hình */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+/* Thẻ Folder */
+.folder-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background-color: #f0f4f9;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.folder-card:hover {
+    background-color: #e1e7ef;
+}
+.folder-card i {
+    color: #5f6368;
+    font-size: 20px;
+}
+
+/* Thẻ File */
+.file-card {
+    background-color: #f0f4f9;
+    border-radius: 12px;
+    padding: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.file-card:hover {
+    background-color: #e1e7ef;
+}
+.file-preview {
+    background-color: #ffffff;
+    height: 120px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+.file-preview i {
+    font-size: 48px;
+}
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Định màu sắc icon file */
+.bi-file-earmark-word-fill {
+    color: #1a73e8;
+}
+.bi-file-earmark-pdf-fill {
+    color: #ea4335;
+}
+.bi-file-earmark-excel-fill {
+    color: #1e7e34;
+}
+
+
+.modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.4); /* Làm tối nền phía sau */
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            }
+            /* Khi active class được thêm vào qua JS */
+            .modal-overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .modal-box {
+                background-color: #ffffff;
+                width: 100%;
+                max-width: 450px;
+                padding: 24px;
+                border-radius: 16px;
+                box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+                transform: scale(0.9);
+                transition: transform 0.2s ease;
+            }
+            .modal-overlay.active .modal-box {
+                transform: scale(1);
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .modal-title {
+                font-size: 18px;
+                font-weight: 500;
+                color: #1f1f1f;
+            }
+            .modal-close {
+                background: none;
+                border: none;
+                font-size: 20px;
+                cursor: pointer;
+                color: #5f6368;
+                padding: 4px;
+            }
+            .modal-close:hover {
+                color: #1f1f1f;
+            }
+
+            /* Khu vực chọn tính năng bên trong Modal */
+            .upload-options {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .upload-option-btn {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                width: 100%;
+                padding: 14px 16px;
+                background-color: #f0f4f9;
+                border: 1px solid transparent;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: 500;
+                color: #444746;
+                cursor: pointer;
+                text-align: left;
+                transition: all 0.2s;
+            }
+            .upload-option-btn:hover {
+                background-color: #e1e7ef;
+                border-color: #a8c7fa;
+                color: #0b57d0;
+            }
+            .upload-option-btn i {
+                font-size: 20px;
+            }
