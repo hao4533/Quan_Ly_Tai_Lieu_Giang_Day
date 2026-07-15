@@ -280,7 +280,11 @@
                                 else if (ext.contains("png") || ext.contains("jpg") || ext.contains("jpeg"))
                                     iconClass = "bi-file-earmark-image-fill";
                     %>
-                    <div class="file-card" style="cursor: pointer;" title="Nhấp đúp chuột để tải xuống">
+                    <!-- Tìm khối hiển thị file-card trong dashboard.jsp -->
+                    <div class="file-card" 
+                         style="cursor: pointer;" 
+                         title="Nhấp để xem và chỉnh sửa trực tuyến"
+                         onclick="window.location.href = '${pageContext.request.contextPath}/ViewOnlineServlet?id=<%= doc.getId()%>'">
                         <div class="file-preview">
                             <i class="bi <%= iconClass%>"></i>
                         </div>

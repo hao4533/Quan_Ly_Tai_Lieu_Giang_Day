@@ -1,87 +1,156 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
 package controller;
 
+import dao.DocumentDao;
+import model.Document;
+import model.User;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.time.LocalDateTime;
+import java.util.Scanner;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-/**
- *
- * @author Ryo
- */
 @WebServlet(name = "ViewOnlineServlet", urlPatterns = {"/ViewOnlineServlet"})
 public class ViewOnlineServlet extends HttpServlet {
 
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            /* TODO output your page here. You may use following sample code. */
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>Servlet ViewOnlineServlet</title>");
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet ViewOnlineServlet at " + request.getContextPath() + "</h1>");
-            out.println("</body>");
-            out.println("</html>");
-        }
-    }
+    private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day";
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
-    /**
-     * Handles the HTTP <code>GET</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+
+        String action = request.getParameter("action");
+        String idParam = request.getParameter("id");
+
+        if (idParam == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Thiếu ID tài liệu!");
+            return;
+        }
+
+        int docId = Integer.parseInt(idParam);
+        DocumentDao docDao = new DocumentDao();
+        Document doc = docDao.getById(docId);
+
+        if (doc == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy tài liệu!");
+            return;
+        }
+
+        // 1. XỬ LÝ DOWNLOAD CHO ONLYOFFICE SERVER TẢI FILE
+        if ("download".equals(action)) {
+            File file = new File(UPLOAD_DIR, doc.getPhysical_path());
+            if (!file.exists()) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "File vật lý không tồn tại!");
+                return;
+            }
+
+            response.setContentType(getServletContext().getMimeType(file.getName()));
+            response.setContentLength((int) file.length());
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + doc.getOriginal_name() + "\"");
+
+            try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file)); OutputStream out = response.getOutputStream()) {
+                byte[] buffer = new byte[1024 * 4];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
+            return;
+        }
+
+        // 2. HIỂN THỊ GIAO DIỆN PREVIEW
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("user") == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
+        User currentUser = (User) session.getAttribute("user");
+        if (doc.getUser_id() != currentUser.getId()) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập tài liệu này!");
+            return;
+        }
+
+        request.setAttribute("document", doc);
+        request.getRequestDispatcher("/WEB-INF/views/preview.jsp").forward(request, response);
     }
 
-    /**
-     * Handles the HTTP <code>POST</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    // 3. XỬ LÝ CALLBACK TỪ ONLYOFFICE DOCUMENT SERVER KHI LƯU FILE
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+
+        PrintWriter out = response.getWriter();
+        response.setContentType("application/json");
+
+        try {
+            // Đọc dữ liệu JSON gửi từ OnlyOffice Server
+            Scanner scanner = new Scanner(request.getInputStream()).useDelimiter("\\A");
+            String body = scanner.hasNext() ? scanner.next() : "";
+
+            // Tìm giá trị "status" và "url" từ chuỗi JSON thô (tránh phụ thuộc thư viện ngoài)
+            int status = -1;
+            String downloadUrl = null;
+
+            if (body.contains("\"status\":")) {
+                String temp = body.substring(body.indexOf("\"status\":") + 9);
+                if (temp.contains(",")) {
+                    temp = temp.substring(0, temp.indexOf(","));
+                }
+                if (temp.contains("}")) {
+                    temp = temp.substring(0, temp.indexOf("}"));
+                }
+                status = Integer.parseInt(temp.trim());
+            }
+
+            if (body.contains("\"url\":")) {
+                String temp = body.substring(body.indexOf("\"url\":") + 6);
+                temp = temp.substring(temp.indexOf("\"") + 1);
+                downloadUrl = temp.substring(0, temp.indexOf("\"")).replace("\\/", "/");
+            }
+
+            String idParam = request.getParameter("id");
+            if (idParam != null && (status == 2 || status == 3)) { // Trạng thái 2 hoặc 3: Sẵn sàng lưu trữ
+                int docId = Integer.parseInt(idParam);
+                DocumentDao docDao = new DocumentDao();
+                Document doc = docDao.getById(docId);
+
+                if (doc != null && downloadUrl != null) {
+                    File file = new File(UPLOAD_DIR, doc.getPhysical_path());
+
+                    // Tải file đã chỉnh sửa từ OnlyOffice Server và lưu đè lên tệp vật lý cũ
+                    try (InputStream in = new URL(downloadUrl).openStream(); FileOutputStream fos = new FileOutputStream(file)) {
+                        byte[] buffer = new byte[1024 * 4];
+                        int bytesRead;
+                        while ((bytesRead = in.read(buffer)) != -1) {
+                            fos.write(buffer, 0, bytesRead);
+                        }
+                    }
+
+                    // Cập nhật lại dung lượng mới và thời gian cập nhật vào Database
+                    doc.setFile_size_bytes(file.length());
+                    doc.setUpdated_at(LocalDateTime.now());
+                    docDao.update(doc);
+                }
+            }
+
+            // Phản hồi bắt buộc của OnlyOffice để xác nhận xử lý thành công
+            out.write("{\"error\":0}");
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.write("{\"error\":1, \"message\":\"" + e.getMessage() + "\"}");
+        }
     }
-
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
-    @Override
-    public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
 }

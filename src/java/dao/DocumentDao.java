@@ -11,10 +11,9 @@ import java.util.List;
 public class DocumentDao extends BaseDao<Document> {
 
     public DocumentDao() {
-        super("jdbc/UsersDB"); // Chỉnh lại JNDI Name cho khớp với kết nối hoạt động của bạn
+        super("jdbc/UsersDB");
     }
 
-    // Lấy tất cả tài liệu thuộc thư mục gốc (folder_id IS NULL) của một User
     public List<Document> getRootDocumentsByUserId(int userId) {
         List<Document> list = new ArrayList<>();
         String sql = "SELECT * FROM documents WHERE user_id = ? AND folder_id IS NULL ORDER BY updated_at DESC";
@@ -75,12 +74,41 @@ public class DocumentDao extends BaseDao<Document> {
 
     @Override
     public Document getById(int id) {
+        String sql = "SELECT * FROM documents WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Document doc = new Document();
+                    doc.setId(rs.getInt("id"));
+                    doc.setOriginal_name(rs.getString("original_name"));
+                    doc.setPhysical_path(rs.getString("physical_path"));
+                    doc.setFile_extension(rs.getString("file_extension"));
+                    doc.setFile_size_bytes(rs.getLong("file_size_bytes"));
+                    doc.setFolder_id(rs.getInt("folder_id"));
+                    doc.setUser_id(rs.getInt("user_id"));
+                    doc.setUpdated_at(rs.getObject("updated_at", java.time.LocalDateTime.class));
+                    return doc;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
     @Override
-    public boolean update(Document model) {
-        return false;
+    public boolean update(Document doc) {
+        String sql = "UPDATE documents SET file_size_bytes = ?, updated_at = ? WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, doc.getFile_size_bytes());
+            pstmt.setTimestamp(2, java.sql.Timestamp.valueOf(doc.getUpdated_at()));
+            pstmt.setInt(3, doc.getId());
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override

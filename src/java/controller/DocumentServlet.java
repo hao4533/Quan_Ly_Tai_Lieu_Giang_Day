@@ -26,7 +26,7 @@ import jakarta.servlet.http.Part;
 public class DocumentServlet extends HttpServlet {
 
     // ĐỊNH NGHĨA THƯ MỤC LƯU TRỮ CỐ ĐỊNH AN TOÀN TRÊN Ổ D
-    private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day/uploads";
+    private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day";
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -40,7 +40,7 @@ public class DocumentServlet extends HttpServlet {
         User currentUser = (User) session.getAttribute("user");
 
         // Tạo thư mục ngoài ổ D nếu chưa tồn tại
-        File uploadFolder = new File(UPLOAD_DIR);
+        File uploadFolder = new File(UPLOAD_DIR, "uploads");
         if (!uploadFolder.exists()) {
             uploadFolder.mkdirs();
         }

@@ -67,7 +67,6 @@ public class AuthServlet extends HttpServlet {
         UserDao userDao = new UserDao(JNDI_NAME);
         // ===================== XỬ LÝ ĐĂNG NHẬP =====================
         if ("/login".equals(path)) {
-            // Đọc chính xác thuộc tính 'email' từ form JSP gửi lên
             String email = request.getParameter("email");
             String password = request.getParameter("password");
 
@@ -89,21 +88,18 @@ public class AuthServlet extends HttpServlet {
                 session.setMaxInactiveInterval(30 * 60); // hết hạn sau 30 phút
                 response.sendRedirect(request.getContextPath() + "/dashboard");
             } else {
-                // Đăng nhập thất bại
                 request.setAttribute("error", "Email hoặc mật khẩu không chính xác!");
-                request.setAttribute("oldEmail", email); // Giữ lại email vừa nhập cho tốt UX
+                request.setAttribute("oldEmail", email);
                 request.getRequestDispatcher("/WEB-INF/views/login.jsp").forward(request, response);
             }
 
             // ===================== ĐĂNG KÝ =====================
-// ===================== ĐĂNG KÝ =====================
         } else if ("/register".equals(path)) {
             String username = request.getParameter("username");
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String confirm = request.getParameter("confirmPassword");
 
-            // 1. Kiểm tra không để trống các trường bắt buộc
             if (username == null || username.trim().isEmpty()
                     || email == null || email.trim().isEmpty()
                     || password == null || password.trim().isEmpty()) {
@@ -113,7 +109,6 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
-            // 2. Kiểm tra mật khẩu xác nhận (Vẫn giữ lại để đảm bảo người dùng gõ đúng)
             if (!password.equals(confirm)) {
                 request.setAttribute("error", "Mật khẩu xác nhận không khớp!");
                 giuLaiDuLieuRegister(request, username, email);
@@ -121,8 +116,6 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
-            // --- PHẦN KIỂM TRA ĐỘ MẠNH MẬT KHẨU (VALIDATEPASSWORD) ĐÃ ĐƯỢC XÓA BỎ TẠI ĐÂY ---
-            // 3. Kiểm tra xem email đã tồn tại trong hệ thống chưa
             if (userDao.isEmailExists(email.trim())) {
                 request.setAttribute("error", "Email này đã được sử dụng, vui lòng chọn email khác!");
                 giuLaiDuLieuRegister(request, username, email);
@@ -130,7 +123,6 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
-            // 4. Tiến hành mã hóa mật khẩu và tạo Model lưu trữ
             String passwordHash = UserDao.hashPassword(password); // Băm SHA-256 
 
             User newUser = new User(email.trim(), passwordHash, username.trim());
@@ -146,7 +138,6 @@ public class AuthServlet extends HttpServlet {
         }
     }
 
-    // Hàm phụ: giữ lại dữ liệu đã nhập khi form bị lỗi (UX tốt hơn)
     private void giuLaiDuLieuRegister(HttpServletRequest request, String username, String email) {
         request.setAttribute("oldUsername", username);
         request.setAttribute("oldEmail", email);
