@@ -11,7 +11,7 @@ import java.util.List;
 public class DocumentDao extends BaseDao<Document> {
 
     public DocumentDao() {
-        super("jdbc/UsersDB");
+        super("jdbc/NodesDB");
     }
 
     public List<Document> getRootDocumentsByUserId(int userId) {
@@ -114,5 +114,33 @@ public class DocumentDao extends BaseDao<Document> {
     @Override
     public boolean delete(int id) {
         return false;
+    }
+
+    // Xóa tài liệu có kiểm tra quyền sở hữu (chỉ chủ sở hữu mới được xóa)
+    public boolean deleteSecure(int id, int userId) {
+        String sql = "DELETE FROM documents WHERE id = ? AND user_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Kiểm tra người dùng có phải chủ sở hữu tài liệu hay không
+    public boolean isOwner(int id, int userId) {
+        String sql = "SELECT 1 FROM documents WHERE id = ? AND user_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

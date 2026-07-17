@@ -10,8 +10,8 @@ import model.Share;
 
 public class ShareDao extends BaseDao<Share> {
 
-    public ShareDao(String jndiName) {
-        super(jndiName);
+    public ShareDao() {
+        super("jdbc/SharesDB");
     }
 
     @Override

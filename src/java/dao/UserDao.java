@@ -13,8 +13,8 @@ import model.User;
 public class UserDao extends BaseDao<User> {
 
     // Constructor bắt buộc để truyền JNDI Name lên BaseDao
-    public UserDao(String jndiName) {
-        super(jndiName);
+    public UserDao() {
+        super("jdbc/UsersDB");
     }
 
     // ========== HASH MẬT KHẨU ==========

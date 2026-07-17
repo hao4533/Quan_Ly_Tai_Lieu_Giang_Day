@@ -28,6 +28,67 @@ public class DocumentServlet extends HttpServlet {
     // ĐỊNH NGHĨA THƯ MỤC LƯU TRỮ CỐ ĐỊNH AN TOÀN TRÊN Ổ D
     private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day";
 
+    // Xử lý XÓA tài liệu: gọi bằng GET /DocumentServlet?action=delete&id=xxx (AJAX)
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        response.setContentType("application/json;charset=UTF-8");
+        String action = request.getParameter("action");
+
+        if (!"delete".equals(action)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("user") == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("{\"success\":false,\"message\":\"Bạn cần đăng nhập!\"}");
+            return;
+        }
+        User currentUser = (User) session.getAttribute("user");
+
+        String idParam = request.getParameter("id");
+        if (idParam == null) {
+            response.getWriter().write("{\"success\":false,\"message\":\"Thiếu ID tài liệu!\"}");
+            return;
+        }
+
+        try {
+            int docId = Integer.parseInt(idParam);
+            DocumentDao docDao = new DocumentDao();
+            Document doc = docDao.getById(docId);
+
+            if (doc == null) {
+                response.getWriter().write("{\"success\":false,\"message\":\"Tài liệu không tồn tại!\"}");
+                return;
+            }
+            if (doc.getUser_id() != currentUser.getId()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.getWriter().write("{\"success\":false,\"message\":\"Bạn không có quyền xóa tài liệu này!\"}");
+                return;
+            }
+
+            boolean deleted = docDao.deleteSecure(docId, currentUser.getId());
+            if (deleted) {
+                // Xóa luôn file vật lý trên ổ đĩa sau khi xóa bản ghi DB thành công
+                File physicalFile = new File(UPLOAD_DIR, doc.getPhysical_path());
+                if (physicalFile.exists()) {
+                    physicalFile.delete();
+                }
+                response.getWriter().write("{\"success\":true}");
+            } else {
+                response.getWriter().write("{\"success\":false,\"message\":\"Xóa thất bại, vui lòng thử lại!\"}");
+            }
+        } catch (NumberFormatException e) {
+            response.getWriter().write("{\"success\":false,\"message\":\"ID không hợp lệ!\"}");
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.getWriter().write("{\"success\":false,\"message\":\"Lỗi hệ thống!\"}");
+        }
+    }
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

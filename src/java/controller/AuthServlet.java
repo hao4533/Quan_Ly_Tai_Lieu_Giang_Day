@@ -13,6 +13,7 @@ import model.User;
 @WebServlet(urlPatterns = {"/login", "/register", "/logout", "/dashboard", "/upload"})
 public class AuthServlet extends HttpServlet {
 
+    // Khớp chính xác 100% với tên JNDI đang chạy thực tế của bạn
     private static final String JNDI_NAME = "jdbc/UsersDB";
 
     @Override
@@ -22,14 +23,15 @@ public class AuthServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
 
         // Chặn truy cập dashboard/upload nếu chưa đăng nhập
-        if ("/dashboard".equals(path)) {
+        if ("/dashboard".equals(path) || "/upload".equals(path)) {
             if (session == null || session.getAttribute("user") == null) {
                 response.sendRedirect(request.getContextPath() + "/login");
                 return;
             }
         }
-        // Nếu đã đăng nhập rồi mà vào login/register -> chuyển thẳng vào dashboard
-        if ("/login".equals(path)) {
+
+        // Nếu đã đăng nhập rồi mà cố vào login/register -> chuyển thẳng vào dashboard
+        if ("/login".equals(path) || "/register".equals(path)) {
             if (session != null && session.getAttribute("user") != null) {
                 response.sendRedirect(request.getContextPath() + "/dashboard");
                 return;
@@ -64,7 +66,8 @@ public class AuthServlet extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         String path = request.getServletPath();
 
-        UserDao userDao = new UserDao(JNDI_NAME);
+        // 🌟 SỬA LỖI: Khởi tạo đối tượng userDao tại đây để các khối lệnh bên dưới sử dụng
+        UserDao userDao = new UserDao();
         // ===================== XỬ LÝ ĐĂNG NHẬP =====================
         if ("/login".equals(path)) {
             String email = request.getParameter("email");
@@ -78,14 +81,13 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
-            // Gọi UserDao thực hiện xác thực trực tiếp qua email
+            // Thực hiện xác thực
             User user = userDao.login(email.trim(), password);
 
             if (user != null) {
-                // Đăng nhập thành công -> lưu user vào session
                 HttpSession session = request.getSession();
                 session.setAttribute("user", user);
-                session.setMaxInactiveInterval(30 * 60); // hết hạn sau 30 phút
+                session.setMaxInactiveInterval(30 * 60); // Hết hạn sau 30 phút
                 response.sendRedirect(request.getContextPath() + "/dashboard");
             } else {
                 request.setAttribute("error", "Email hoặc mật khẩu không chính xác!");
@@ -93,7 +95,7 @@ public class AuthServlet extends HttpServlet {
                 request.getRequestDispatcher("/WEB-INF/views/login.jsp").forward(request, response);
             }
 
-            // ===================== ĐĂNG KÝ =====================
+            // ===================== XỬ LÝ ĐĂNG KÝ =====================
         } else if ("/register".equals(path)) {
             String username = request.getParameter("username");
             String email = request.getParameter("email");
@@ -123,7 +125,7 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
-            String passwordHash = UserDao.hashPassword(password); // Băm SHA-256 
+            String passwordHash = UserDao.hashPassword(password); // Băm mật khẩu SHA-256
 
             User newUser = new User(email.trim(), passwordHash, username.trim());
             boolean success = userDao.insert(newUser);

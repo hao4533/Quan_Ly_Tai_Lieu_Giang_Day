@@ -19,7 +19,7 @@ import model.Folder;
 public class FolderDao extends BaseDao<Folder> {
 
     public FolderDao() {
-        super("jdbc/UsersDB");
+        super("jdbc/NodesDB");
     }
 
     @Override
