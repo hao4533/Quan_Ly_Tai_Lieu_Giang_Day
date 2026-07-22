@@ -25,11 +25,14 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet(name = "ViewOnlineServlet", urlPatterns = {"/ViewOnlineServlet"})
 public class ViewOnlineServlet extends HttpServlet {
 
-    private static final String UPLOAD_DIR = "uploads";
+    private static final String EXTERNAL_STORAGE_DIR = "D:" + File.separator + "app_data" + File.separator + "uploads";
 
-    // Hàm tiện ích lấy đường dẫn thực tế của thư mục uploads trong WebApp
-    private String getUploadPath() {
-        return getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+    private String getStoragePath() {
+        File folder = new File(EXTERNAL_STORAGE_DIR);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        return EXTERNAL_STORAGE_DIR;
     }
 
     @Override
@@ -53,10 +56,10 @@ public class ViewOnlineServlet extends HttpServlet {
             return;
         }
 
-        // 1. XỬ LÝ DOWNLOAD CHO ONLYOFFICE SERVER TẢI FILE
+        // 1. XỬ LÝ DOWNLOAD CHO ONLYOFFICE TẢI FILE
         if ("download".equals(action)) {
-            // Sửa: Lấy file đúng thư mục uploads trong WebApp
-            File file = new File(getUploadPath(), doc.getPhysical_path());
+            // Đọc file từ thư mục ngoài
+            File file = new File(getStoragePath(), doc.getPhysical_path());
             if (!file.exists()) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "File vật lý không tồn tại!");
                 return;
@@ -66,7 +69,8 @@ public class ViewOnlineServlet extends HttpServlet {
             response.setContentLength((int) file.length());
             response.setHeader("Content-Disposition", "attachment; filename=\"" + doc.getOriginal_name() + "\"");
 
-            try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file)); OutputStream out = response.getOutputStream()) {
+            try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file)); 
+                 OutputStream out = response.getOutputStream()) {
                 byte[] buffer = new byte[1024 * 4];
                 int bytesRead;
                 while ((bytesRead = in.read(buffer)) != -1) {
@@ -93,7 +97,7 @@ public class ViewOnlineServlet extends HttpServlet {
         request.getRequestDispatcher("/WEB-INF/views/preview.jsp").forward(request, response);
     }
 
-    // 3. XỬ LÝ CALLBACK TỪ ONLYOFFICE DOCUMENT SERVER KHI LƯU FILE
+    // 3. XỬ LÝ CALLBACK TỪ ONLYOFFICE KHI BẤM LƯU
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -102,22 +106,16 @@ public class ViewOnlineServlet extends HttpServlet {
         response.setContentType("application/json");
 
         try {
-            // Đọc dữ liệu JSON gửi từ OnlyOffice Server
             Scanner scanner = new Scanner(request.getInputStream()).useDelimiter("\\A");
             String body = scanner.hasNext() ? scanner.next() : "";
 
-            // Tìm giá trị "status" và "url" từ chuỗi JSON thô
             int status = -1;
             String downloadUrl = null;
 
             if (body.contains("\"status\":")) {
                 String temp = body.substring(body.indexOf("\"status\":") + 9);
-                if (temp.contains(",")) {
-                    temp = temp.substring(0, temp.indexOf(","));
-                }
-                if (temp.contains("}")) {
-                    temp = temp.substring(0, temp.indexOf("}"));
-                }
+                if (temp.contains(",")) temp = temp.substring(0, temp.indexOf(","));
+                if (temp.contains("}")) temp = temp.substring(0, temp.indexOf("}"));
                 status = Integer.parseInt(temp.trim());
             }
 
@@ -128,17 +126,17 @@ public class ViewOnlineServlet extends HttpServlet {
             }
 
             String idParam = request.getParameter("id");
-            if (idParam != null && (status == 2 || status == 3)) { // Trạng thái 2 hoặc 3: Sẵn sàng lưu trữ
+            if (idParam != null && (status == 2 || status == 3)) { 
                 int docId = Integer.parseInt(idParam);
                 DocumentDao docDao = new DocumentDao();
                 Document doc = docDao.getById(docId);
 
                 if (doc != null && downloadUrl != null) {
-                    // Sửa: Lưu file đè lại đúng vị trí trong thư mục uploads của WebApp
-                    File file = new File(getUploadPath(), doc.getPhysical_path());
+                    // Lưu file đè vào thư mục ngoài ổ đĩa
+                    File file = new File(getStoragePath(), doc.getPhysical_path());
 
-                    // Tải file đã chỉnh sửa từ OnlyOffice Server và ghi đè
-                    try (InputStream in = new URL(downloadUrl).openStream(); FileOutputStream fos = new FileOutputStream(file)) {
+                    try (InputStream in = new URL(downloadUrl).openStream(); 
+                         FileOutputStream fos = new FileOutputStream(file)) {
                         byte[] buffer = new byte[1024 * 4];
                         int bytesRead;
                         while ((bytesRead = in.read(buffer)) != -1) {
@@ -146,14 +144,12 @@ public class ViewOnlineServlet extends HttpServlet {
                         }
                     }
 
-                    // Cập nhật lại dung lượng mới và thời gian cập nhật vào Database
                     doc.setFile_size_bytes(file.length());
                     doc.setUpdated_at(LocalDateTime.now());
                     docDao.update(doc);
                 }
             }
 
-            // Phản hồi bắt buộc của OnlyOffice để xác nhận xử lý thành công
             out.write("{\"error\":0}");
         } catch (Exception e) {
             e.printStackTrace();
