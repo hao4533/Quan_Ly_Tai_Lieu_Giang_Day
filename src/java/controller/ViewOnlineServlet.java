@@ -25,7 +25,7 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet(name = "ViewOnlineServlet", urlPatterns = {"/ViewOnlineServlet"})
 public class ViewOnlineServlet extends HttpServlet {
 
-    private static final String EXTERNAL_STORAGE_DIR = "D:" + File.separator + "app_data" + File.separator + "uploads";
+    private static final String EXTERNAL_STORAGE_DIR = "C:" + File.separator + "app_data" + File.separator + "uploads";
 
     private String getStoragePath() {
         File folder = new File(EXTERNAL_STORAGE_DIR);
