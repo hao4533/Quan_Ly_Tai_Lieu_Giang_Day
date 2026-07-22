@@ -25,7 +25,12 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet(name = "ViewOnlineServlet", urlPatterns = {"/ViewOnlineServlet"})
 public class ViewOnlineServlet extends HttpServlet {
 
-    private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day";
+    private static final String UPLOAD_DIR = "uploads";
+
+    // Hàm tiện ích lấy đường dẫn thực tế của thư mục uploads trong WebApp
+    private String getUploadPath() {
+        return getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -50,7 +55,8 @@ public class ViewOnlineServlet extends HttpServlet {
 
         // 1. XỬ LÝ DOWNLOAD CHO ONLYOFFICE SERVER TẢI FILE
         if ("download".equals(action)) {
-            File file = new File(UPLOAD_DIR, doc.getPhysical_path());
+            // Sửa: Lấy file đúng thư mục uploads trong WebApp
+            File file = new File(getUploadPath(), doc.getPhysical_path());
             if (!file.exists()) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "File vật lý không tồn tại!");
                 return;
@@ -100,7 +106,7 @@ public class ViewOnlineServlet extends HttpServlet {
             Scanner scanner = new Scanner(request.getInputStream()).useDelimiter("\\A");
             String body = scanner.hasNext() ? scanner.next() : "";
 
-            // Tìm giá trị "status" và "url" từ chuỗi JSON thô (tránh phụ thuộc thư viện ngoài)
+            // Tìm giá trị "status" và "url" từ chuỗi JSON thô
             int status = -1;
             String downloadUrl = null;
 
@@ -128,9 +134,10 @@ public class ViewOnlineServlet extends HttpServlet {
                 Document doc = docDao.getById(docId);
 
                 if (doc != null && downloadUrl != null) {
-                    File file = new File(UPLOAD_DIR, doc.getPhysical_path());
+                    // Sửa: Lưu file đè lại đúng vị trí trong thư mục uploads của WebApp
+                    File file = new File(getUploadPath(), doc.getPhysical_path());
 
-                    // Tải file đã chỉnh sửa từ OnlyOffice Server và lưu đè lên tệp vật lý cũ
+                    // Tải file đã chỉnh sửa từ OnlyOffice Server và ghi đè
                     try (InputStream in = new URL(downloadUrl).openStream(); FileOutputStream fos = new FileOutputStream(file)) {
                         byte[] buffer = new byte[1024 * 4];
                         int bytesRead;

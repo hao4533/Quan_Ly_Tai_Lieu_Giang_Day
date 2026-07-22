@@ -25,10 +25,14 @@ import jakarta.servlet.http.Part;
 )
 public class DocumentServlet extends HttpServlet {
 
-    // ĐỊNH NGHĨA THƯ MỤC LƯU TRỮ CỐ ĐỊNH AN TOÀN TRÊN Ổ D
-    private static final String UPLOAD_DIR = "D:/CTU/CT224 -- J2EE/Quan_Ly_Tai_Lieu_Giang_Day";
+    private static final String UPLOAD_DIR = "uploads";
 
-    // Xử lý XÓA tài liệu: gọi bằng GET /DocumentServlet?action=delete&id=xxx (AJAX)
+    // Hàm tiện ích để lấy đường dẫn tuyệt đối của thư mục uploads trong WebApp
+    private String getUploadPath() {
+        return getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+    }
+
+    // Xử lý XÓA tài liệu
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -72,8 +76,8 @@ public class DocumentServlet extends HttpServlet {
 
             boolean deleted = docDao.deleteSecure(docId, currentUser.getId());
             if (deleted) {
-                // Xóa luôn file vật lý trên ổ đĩa sau khi xóa bản ghi DB thành công
-                File physicalFile = new File(UPLOAD_DIR, doc.getPhysical_path());
+                // Xóa file vật lý tương ứng trong thư mục uploads của webapp
+                File physicalFile = new File(getUploadPath(), doc.getPhysical_path());
                 if (physicalFile.exists()) {
                     physicalFile.delete();
                 }
@@ -100,11 +104,14 @@ public class DocumentServlet extends HttpServlet {
         }
         User currentUser = (User) session.getAttribute("user");
 
-        // Tạo thư mục ngoài ổ D nếu chưa tồn tại
-        File uploadFolder = new File(UPLOAD_DIR, "uploads");
+        // Lấy đường dẫn thực tế của thư mục uploads trong WebApp
+        File uploadFolder = new File(getUploadPath());
         if (!uploadFolder.exists()) {
-            uploadFolder.mkdirs();
+            uploadFolder.mkdirs(); // Tự động tạo thư mục uploads nếu chưa có
         }
+
+        // In đường dẫn tuyệt đối ra Console để dễ kiểm tra vị trí lưu file
+        System.out.println("===> [DEBUG] Vi tri luu file thuc te: " + uploadFolder.getAbsolutePath());
 
         DocumentDao docDao = new DocumentDao();
         Collection<Part> parts = request.getParts();
@@ -121,17 +128,14 @@ public class DocumentServlet extends HttpServlet {
                     fileExtension = originalName.substring(dotIndex);
                 }
 
-                // Tạo tên file ngẫu nhiên duy nhất bằng UUID để tránh trùng tên file trên đĩa cứng
+                // Tạo tên file duy nhất bằng UUID
                 String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
 
-                // Định vị file cứng ngoài ổ D (Giữ nguyên dòng này của bạn)
+                // Định vị file vật lý trong thư mục uploads
                 File finalPhysicalFile = new File(uploadFolder, uniqueFileName);
 
                 try {
-                    // ====================================================================
-                    // THAY THẾ DÒNG: part.write(finalPhysicalFile.getAbsolutePath()); (Dòng 71)
-                    // BẰNG LỆNH SAO CHÉP STREAM DƯỚI ĐÂY:
-                    // ====================================================================
+                    // Sao chép stream từ Part vào file đích
                     try (InputStream input = part.getInputStream()) {
                         java.nio.file.Files.copy(
                                 input,
@@ -139,12 +143,13 @@ public class DocumentServlet extends HttpServlet {
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
                         );
                     }
-                    // ====================================================================
 
-                    // 2. Chuẩn bị đối tượng lưu thông tin vào Database (Giữ nguyên phần dưới)
+                    System.out.println("===> [DEBUG] Da luu file thanh cong: " + finalPhysicalFile.getAbsolutePath());
+
+                    // Chuẩn bị đối tượng lưu thông tin vào Database
                     Document doc = new Document();
                     doc.setOriginal_name(originalName);
-                    doc.setPhysical_path("uploads/" + uniqueFileName);
+                    doc.setPhysical_path(uniqueFileName);
                     doc.setFile_extension(fileExtension.toLowerCase());
                     doc.setFile_size_bytes(fileSizeBytes);
                     doc.setFolder_id(0);
@@ -154,7 +159,7 @@ public class DocumentServlet extends HttpServlet {
                     boolean isInserted = docDao.insert(doc);
                     if (!isInserted) {
                         hasError = true;
-                        finalPhysicalFile.delete(); // Rollback file nếu DB lỗi
+                        finalPhysicalFile.delete(); // Rollback file nếu lưu DB thất bại
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

@@ -7,7 +7,7 @@
         return;
     }
 
-    String myHostIP = "172.16.142.197";
+    String myHostIP = "172.29.64.1";
     int glassfishPort = request.getServerPort();
 
     // Cổng chạy Docker OnlyOffice của bạn (Đồng nhất là 8089)
