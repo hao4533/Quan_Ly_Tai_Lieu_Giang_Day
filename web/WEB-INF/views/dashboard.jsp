@@ -6,7 +6,6 @@
 <%@ page import="dao.DocumentDao" %>
 <%@ page import="java.util.List" %>
 <%
-    // 1. Kiểm tra session đăng nhập bảo vệ trang chủ công khai
     User currentUser = (User) session.getAttribute("user");
     if (currentUser == null) {
         response.sendRedirect(request.getContextPath() + "/login");
@@ -15,11 +14,9 @@
     String fullName = currentUser.getFullName();
     int userId = currentUser.getId();
 
-    // 2. Lấy danh sách Thư mục động của User từ Database
     FolderDao folderDao = new FolderDao();
     List<Folder> folderList = folderDao.getRootFolderByUserId(userId);
 
-    // 3. Lấy danh sách Tập tin động của User từ Database
     DocumentDao documentDao = new DocumentDao();
     List<Document> documentList = documentDao.getRootDocumentsByUserId(userId);
 %>
@@ -48,7 +45,6 @@
                 <span class="user-name"><%= fullName%></span>
                 <i class="bi bi-chevron-down" style="font-size:12px; color:#666;"></i>
 
-                <!-- Dropdown menu -->
                 <div class="user-dropdown" id="userDropdown">
                     <div class="dropdown-info">
                         <img src="https://github.com/mdo.png" alt="Avatar">
@@ -65,7 +61,6 @@
         </header>
 
         <div class="main-layout">
-
             <aside class="sidebar">
                 <div>
                     <button class="btn-new" onclick="openUploadModal()">
@@ -82,7 +77,6 @@
             <main class="content-container">
                 <h2 class="content-title">Dữ liệu tài khoản</h2>
 
-                <!-- ================= KHU VỰC THƯ MỤC ================= -->
                 <div class="section-title">Thư mục</div>
                 <div class="grid-container">
                     <%
@@ -100,13 +94,12 @@
                     <p style="color: #747775; font-size: 14px; padding-left: 10px;">Chưa có thư mục nào ở đây.</p>
                     <% } %>
                 </div>
-                <!-- ================= KHU VỰC TẬP TIN (FILE) ================= -->
+
                 <div class="section-title">Tập tin</div>
                 <div class="grid-container">
                     <%
                         if (documentList != null && !documentList.isEmpty()) {
                             for (Document doc : documentList) {
-                                // Định dạng biểu tượng Icon dựa theo đuôi định dạng file
                                 String iconClass = "bi-file-earmark-text-fill";
                                 String ext = doc.getFile_extension();
                                 if (ext.contains("doc"))
@@ -118,20 +111,20 @@
                                 else if (ext.contains("png") || ext.contains("jpg") || ext.contains("jpeg"))
                                     iconClass = "bi-file-earmark-image-fill";
                     %>
-                    <!-- Tìm khối hiển thị file-card trong dashboard.jsp -->
                     <div class="file-card" 
                          id="file-card-<%= doc.getId()%>"
                          style="cursor: pointer; position: relative;" 
                          title="Nhấp để xem và chỉnh sửa trực tuyến"
                          onclick="window.location.href = '${pageContext.request.contextPath}/ViewOnlineServlet?id=<%= doc.getId()%>'">
 
-                        <!-- Nút menu 3 chấm: bấm vào sẽ mở dropdown Chia sẻ / Xóa -->
                         <button type="button" class="file-menu-btn"
                                 onclick="event.stopPropagation(); toggleFileMenu(<%= doc.getId()%>)">
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <div class="file-menu-dropdown" id="file-menu-<%= doc.getId()%>" onclick="event.stopPropagation()">
-                            <button type="button" class="file-menu-item" onclick="shareFile()">
+                            <!-- Truyền ID và Tên File vào hàm shareFile() -->
+                            <button type="button" class="file-menu-item" 
+                                    onclick="shareFile(<%= doc.getId()%>, '<%= doc.getOriginal_name().replace("'", "\\'")%>')">
                                 <i class="bi bi-people-fill"></i> Chia sẻ
                             </button>
                             <button type="button" class="file-menu-item file-menu-item-danger"
@@ -176,6 +169,9 @@
             </div>
         </div>
 
+        <!-- NHÚNG COMPONENT MODAL CHIA SẺ VÀO DASHBOARD -->
+        <jsp:include page="share-modal.jsp" />
+
         <script>
             const modal = document.getElementById('uploadModal');
 
@@ -191,7 +187,6 @@
                 toggleModal(true);
             }
 
-
             function closeUploadModal(e) {
                 if (e.target === modal) {
                     toggleModal(false);
@@ -202,13 +197,10 @@
                 const contextPath = "${pageContext.request.contextPath}";
                 window.location.href = contextPath + "/upload";
             }
-        </script>
 
-        <script>
             // ================= MENU 3 CHẤM =================
             const contextPath = "${pageContext.request.contextPath}";
 
-            // Đóng tất cả dropdown menu đang mở
             function closeAllFileMenus() {
                 document.querySelectorAll('.file-menu-dropdown.show').forEach(function (el) {
                     el.classList.remove('show');
@@ -228,9 +220,10 @@
                 closeAllFileMenus();
             });
 
-            // ================= CHIA SẺ=================
-            function shareFile() {
-
+            // ================= MỞ MODAL CHIA SẺ =================
+            function shareFile(docId, docName) {
+                closeAllFileMenus();
+                openShareModal(docId, docName);
             }
 
             // ================= XÓA FILE =================
@@ -257,13 +250,10 @@
                             alert('Lỗi kết nối, vui lòng thử lại!');
                         });
             }
-        </script>
 
-        <script>
             function toggleUserMenu() {
                 document.getElementById('userDropdown').classList.toggle('show');
             }
-            // Bấm ra ngoài thì đóng dropdown
             document.addEventListener('click', function (e) {
                 const profile = document.querySelector('.user-profile');
                 if (profile && !profile.contains(e.target)) {
@@ -273,6 +263,5 @@
                 }
             });
         </script>
-
     </body>
 </html>

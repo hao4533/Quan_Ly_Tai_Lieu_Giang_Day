@@ -1,24 +1,42 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="model.Document" %>
+<%@ page import="model.User" %>
 <%
     Document doc = (Document) request.getAttribute("document");
     if (doc == null) {
-        response.sendRedirect(request.getContextPath() + "/dashboard");
+        response.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy tài liệu trong Attribute!");
         return;
     }
 
-    String myHostIP = "172.29.64.1";
+    Boolean isOwnerObj = (Boolean) request.getAttribute("isOwner");
+    boolean isOwner = (isOwnerObj != null && isOwnerObj);
+    String shareToken = (String) request.getAttribute("shareToken");
+
+    // IP / Host cấu hình
+    String hostIP = "192.168.1.3"; // IP máy host chạy Docker & Glassfish
     int glassfishPort = request.getServerPort();
 
-    // Cổng chạy Docker OnlyOffice của bạn (Đồng nhất là 8089)
-    String onlyOfficeHost = "http://" + myHostIP + ":8089";
+    // 1. URL nạp API OnlyOffice
+    String onlyOfficeApiUrl = "http://" + hostIP + ":8089/web-apps/apps/api/documents/api.js";
 
-    String serverPath = request.getScheme() + "://" + myHostIP + ":" + glassfishPort + request.getContextPath();
+    // 2. URL để Docker gọi ngược lại GlassFish lấy file binary
+    String dockerToHost = "host.docker.internal";
+    String serverPathForDocker = request.getScheme() + "://" + dockerToHost + ":" + glassfishPort + request.getContextPath();
 
-    String fileUrl = serverPath + "/ViewOnlineServlet?action=download&id=" + doc.getId();
-    String callbackUrl = serverPath + "/ViewOnlineServlet?id=" + doc.getId();
+    String fileUrl = "";
+    if (shareToken != null && !shareToken.trim().isEmpty() && !"null".equalsIgnoreCase(shareToken.trim())) {
+        fileUrl = serverPathForDocker + "/ViewOnlineServlet?action=download_by_token&token=" + shareToken;
+    } else {
+        fileUrl = serverPathForDocker + "/ViewOnlineServlet?action=download&id=" + doc.getId();
+    }
 
-    String fileExt = doc.getFile_extension().replace(".", "").toLowerCase().trim();
+    String callbackUrl = serverPathForDocker + "/ViewOnlineServlet?id=" + doc.getId();
+
+    // Định dạng file
+    String fileExt = (doc.getFile_extension() != null && !doc.getFile_extension().isEmpty()) 
+                        ? doc.getFile_extension().replace(".", "").toLowerCase().trim() 
+                        : "docx";
+    
     String documentType = "word";
     if (fileExt.equals("xlsx") || fileExt.equals("xls")) {
         documentType = "cell";
@@ -26,88 +44,80 @@
         documentType = "slide";
     }
 
-    String documentKey = "DocKey_" + doc.getId() + "_" + doc.getUpdated_at().hashCode();
+    // Key độc nhất để OnlyOffice nhận diện cache (nếu sửa file key sẽ thay đổi)
+    String documentKey = "DocKey_" + doc.getId() + "_" + (doc.getUpdated_at() != null ? doc.getUpdated_at().hashCode() : System.currentTimeMillis());
+
+    User currentUser = (User) session.getAttribute("user");
+    String userName = (currentUser != null && currentUser.getFullName() != null) 
+                        ? currentUser.getFullName() 
+                        : (isOwner ? "Giảng viên" : "Người học");
+    String userId = (currentUser != null) ? String.valueOf(currentUser.getId()) : "guest";
 %>
 <!DOCTYPE html>
-<html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title><%= doc.getOriginal_name()%> - Trình đọc trực tuyến</title>
-        <style>
-            html, body {
-                height: 100%;
-                margin: 0;
-                padding: 0;
-                overflow: hidden;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            #header-bar {
-                height: 50px;
-                background-color: #f8f9fa;
-                border-bottom: 1px solid #e0e0e0;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0 20px;
-                box-sizing: border-box;
-            }
-            .back-btn {
-                color: #0b57d0;
-                text-decoration: none;
-                font-weight: 500;
-                font-size: 14px;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-            .back-btn:hover {
-                text-decoration: underline;
-            }
-            #editor-container {
-                height: calc(100% - 50px);
-                width: 100%;
-            }
-        </style>
-        <!-- Nhúng thư viện API trực tiếp từ OnlyOffice Server -->
-        <script type="text/javascript" src="<%= onlyOfficeHost%>/web-apps/apps/api/documents/api.js"></script>
-    </head>
-    <body>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Xem tài liệu - <%= doc.getOriginal_name() %></title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #placeholder {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <!-- Script API OnlyOffice -->
+    <script type="text/javascript" src="<%= onlyOfficeApiUrl %>"></script>
+</head>
+<body>
+    <div id="placeholder"></div>
 
-        <div id="header-bar">
-            <a href="${pageContext.request.contextPath}/dashboard" class="back-btn">
-                ◀ Quay lại Dashboard
-            </a>
-            <strong style="color: #1f1f1f;"><%= doc.getOriginal_name()%></strong>
-            <div style="width: 100px;"></div>
-        </div>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof DocsAPI === "undefined") {
+                console.error("❌ Không thể nạp DocsAPI từ OnlyOffice! Kiểm tra lại container Docker.");
+                document.getElementById("placeholder").innerHTML = "<h3 style='color:red; text-align:center; margin-top:50px;'>Không thể kết nối đến máy chủ xem tài liệu (OnlyOffice)!</h3>";
+                return;
+            }
 
-        <div id="editor-container"></div>
-
-        <script type="text/javascript">
-            var docEditor = new DocsAPI.DocEditor("editor-container", {
+            var config = {
                 "document": {
-                    "fileType": "<%= fileExt%>",
-                    "key": "<%= documentKey%>",
-                    "title": "<%= doc.getOriginal_name()%>",
-                    "url": "<%= fileUrl%>"
-                },
-                "documentType": "<%= documentType%>",
-                "editorConfig": {
-                    "callbackUrl": "<%= callbackUrl%>",
-                    "lang": "vi",
-                    "mode": "edit", // Để "view" nếu chỉ muốn xem, "edit" để cho phép sửa trực tiếp
-                    "user": {
-                        "id": "User_<%= doc.getUser_id()%>",
-                        "name": "Giảng viên"
-                    },
-                    "customization": {
-                        "forcesave": true // Buộc gửi cập nhật liên tục khi ấn nút Save của OnlyOffice
+                    "fileType": "<%= fileExt %>",
+                    "key": "<%= documentKey %>",
+                    "title": "<%= doc.getOriginal_name() %>",
+                    "url": "<%= fileUrl %>",
+                    "permissions": {
+                        "download": true,
+                        "edit": <%= isOwner %>,
+                        "print": true
                     }
                 },
-                "height": "100%",
-                "width": "100%"
-            });
-        </script>
-    </body>
+                "documentType": "<%= documentType %>",
+                "editorConfig": {
+                    "mode": "<%= isOwner ? "edit" : "view" %>",
+                    "lang": "vi",
+                    "callbackUrl": "<%= callbackUrl %>",
+                    "user": {
+                        "id": "<%= userId %>",
+                        "name": "<%= userName %>"
+                    },
+                    "customization": {
+                        "autosave": true,
+                        "forcesave": true
+                    }
+                },
+                "width": "100%",
+                "height": "100%"
+            };
+
+            // Khởi tạo Editor
+            var docEditor = new DocsAPI.DocEditor("placeholder", config);
+        });
+    </script>
+</body>
 </html>
