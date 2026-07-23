@@ -7,6 +7,8 @@ import java.sql.ResultSet;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import javax.naming.NamingException;
+import java.sql.SQLException;
 
 public class DocumentDao extends BaseDao<Document> {
 
@@ -142,5 +144,28 @@ public class DocumentDao extends BaseDao<Document> {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Kiểm tra người dùng có phải chủ sở hữu hợp pháp của tài liệu hay không (Dùng cho quy trình gửi Email)
+     */
+    public boolean checkOwnership(int documentId, int userId) {
+        String sql = "SELECT 1 FROM documents WHERE id = ? AND user_id = ?";
+
+        try (Connection conn = getConnection(); 
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, documentId);
+            pstmt.setInt(2, userId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next(); // Trả về true nếu đúng chủ sở hữu
+            }
+        } catch (SQLException | NamingException e) {
+            e.printStackTrace();
+        } catch (Exception ex) {
+            System.getLogger(DocumentDao.class.getName()).log(System.Logger.Level.ERROR, "Lỗi checkOwnership", ex);
+        }
+        return false;
     }
 }
