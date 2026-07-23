@@ -5,48 +5,37 @@
 package model;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
+
 /**
  *
  * @author Ryo
  */
-public class Share implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class Share {
 
-    private int id;
-    private int documentId;     // Tài liệu nào đang được chia sẻ
-    private int sharedByUserId; // ID người thực hiện chia sẻ (chủ sở hữu)
-    private int sharedToUserId; // ID người nhận được quyền xem/tải tài liệu
-    private LocalDateTime sharedAt; // Thời gian thực hiện liên kết chia sẻ
+    private String token;
+    private int documentId;
+    private String recipientEmail;
+    private Timestamp expireAt;
 
-    //Constructor không tham số
     public Share() {
     }
 
-    //Constructor đầy đủ tham số
-    public Share(int id, int documentId, int sharedByUserId, int sharedToUserId, LocalDateTime sharedAt) {
-        this.id = id;
+    public Share(String token, int documentId, String recipientEmail, Timestamp expireAt) {
+        this.token = token;
         this.documentId = documentId;
-        this.sharedByUserId = sharedByUserId;
-        this.sharedToUserId = sharedToUserId;
-        this.sharedAt = sharedAt;
+        this.recipientEmail = recipientEmail;
+        this.expireAt = expireAt;
     }
 
-    //Constructor dùng khi chuẩn bị tạo bản ghi chia sẻ mới
-    public Share(int documentId, int sharedByUserId, int sharedToUserId, LocalDateTime sharedAt) {
-        this.documentId = documentId;
-        this.sharedByUserId = sharedByUserId;
-        this.sharedToUserId = sharedToUserId;
-        this.sharedAt = sharedAt;
+    // Getters và Setters
+    public String getToken() {
+        return token;
     }
 
-    //Getter và Setter
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public int getDocumentId() {
@@ -57,27 +46,19 @@ public class Share implements Serializable {
         this.documentId = documentId;
     }
 
-    public int getSharedByUserId() {
-        return sharedByUserId;
+    public String getRecipientEmail() {
+        return recipientEmail;
     }
 
-    public void setSharedByUserId(int sharedByUserId) {
-        this.sharedByUserId = sharedByUserId;
+    public void setRecipientEmail(String recipientEmail) {
+        this.recipientEmail = recipientEmail;
     }
 
-    public int getSharedToUserId() {
-        return sharedToUserId;
+    public Timestamp getExpireAt() {
+        return expireAt;
     }
 
-    public void setSharedToUserId(int sharedToUserId) {
-        this.sharedToUserId = sharedToUserId;
-    }
-
-    public LocalDateTime getSharedAt() {
-        return sharedAt;
-    }
-
-    public void setSharedAt(LocalDateTime sharedAt) {
-        this.sharedAt = sharedAt;
+    public void setExpireAt(Timestamp expireAt) {
+        this.expireAt = expireAt;
     }
 }
