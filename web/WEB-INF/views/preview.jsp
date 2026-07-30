@@ -30,7 +30,7 @@
     boolean canPrint = isOwner ? true : (canPrintObj != null ? canPrintObj : true);
 
     // IP / Host cấu hình
-    String hostIP = "192.168.1.5"; // IP máy host chạy Docker & Glassfish
+    String hostIP = "10.13.131.216"; // IP máy host chạy Docker & Glassfish
     int glassfishPort = request.getServerPort();
 
     // 1. URL nạp API OnlyOffice

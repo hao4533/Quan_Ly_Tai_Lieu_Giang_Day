@@ -149,6 +149,29 @@ public class UserDao extends BaseDao<User> {
         return list;
     }
 
+    // Lấy thông tin người dùng theo Email (dùng để lấy lại ID vừa được sinh ra sau khi tạo tài khoản mới ở trang admin)
+    public User getByEmail(String email) {
+        String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE email = ?";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new User(
+                            rs.getInt("id"),
+                            rs.getString("email"),
+                            rs.getString("password_hash"),
+                            rs.getString("full_name"),
+                            rs.getString("role")
+                    );
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     @Override
     public User getById(int id) {
         String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE id = ?";

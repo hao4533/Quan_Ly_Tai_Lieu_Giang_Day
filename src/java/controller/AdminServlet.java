@@ -129,6 +129,55 @@ public class AdminServlet extends HttpServlet {
             return;
         }
 
+        // =========================================================================
+        // Action 3: TẠO TÀI KHOẢN NGƯỜI DÙNG MỚI (createUser)
+        // =========================================================================
+        if ("createUser".equals(action)) {
+            String fullName = request.getParameter("fullName");
+            String email = request.getParameter("email");
+            String password = request.getParameter("password");
+
+            if (fullName == null || fullName.trim().isEmpty()
+                    || email == null || email.trim().isEmpty()
+                    || password == null || password.trim().isEmpty()) {
+                response.getWriter().write("{\"success\":false,\"message\":\"Vui lòng nhập đầy đủ Họ tên, Email và Mật khẩu!\"}");
+                return;
+            }
+
+            String trimmedName = fullName.trim();
+            String trimmedEmail = email.trim();
+
+            try {
+                if (userDao.isEmailExists(trimmedEmail)) {
+                    response.getWriter().write("{\"success\":false,\"message\":\"Email này đã được sử dụng, vui lòng chọn email khác!\"}");
+                    return;
+                }
+
+                String passwordHash = UserDao.hashPassword(password);
+                User newUser = new User(trimmedEmail, passwordHash, trimmedName); // Constructor này mặc định role = user
+
+                boolean inserted = userDao.insert(newUser);
+                if (!inserted) {
+                    response.getWriter().write("{\"success\":false,\"message\":\"Tạo tài khoản thất bại, vui lòng thử lại!\"}");
+                    return;
+                }
+
+                // Lấy lại bản ghi vừa tạo để có ID thật trả về cho giao diện (giúp thêm dòng mới vào bảng mà không cần tải lại trang)
+                User created = userDao.getByEmail(trimmedEmail);
+                int newId = (created != null) ? created.getId() : 0;
+
+                String safeName = trimmedName.replace("\\", "\\\\").replace("\"", "\\\"");
+                String safeEmail = trimmedEmail.replace("\\", "\\\\").replace("\"", "\\\"");
+
+                response.getWriter().write("{\"success\":true,\"message\":\"Tạo tài khoản thành công!\","
+                        + "\"user\":{\"id\":" + newId + ",\"fullName\":\"" + safeName + "\",\"email\":\"" + safeEmail + "\"}}");
+            } catch (Exception e) {
+                e.printStackTrace();
+                response.getWriter().write("{\"success\":false,\"message\":\"Lỗi hệ thống!\"}");
+            }
+            return;
+        }
+
         // Trường hợp tham số action không đúng
         response.sendError(HttpServletResponse.SC_BAD_REQUEST);
     }
