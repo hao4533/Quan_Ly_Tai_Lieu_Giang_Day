@@ -1,10 +1,11 @@
 package controller;
 
 import dao.DocumentDao;
-import dao.ShareDao;
+import dao.ShareEmailDao;
 import model.Document;
-import model.Share;
+import model.ShareEmail;
 import model.User;
+import service.InternalShareService;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -17,6 +18,7 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Scanner;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -30,8 +32,10 @@ public class ViewOnlineServlet extends HttpServlet {
 
     private static final String EXTERNAL_STORAGE_DIR = "C:" + File.separator + "app_data" + File.separator + "uploads";
 
-    private final ShareDao shareDao = new ShareDao();
+    private final ShareEmailDao shareDao = new ShareEmailDao();
     private final DocumentDao docDao = new DocumentDao();
+    // 🆕 Dùng để tra cứu quyền (download/edit/print) mà tài liệu đã được chia sẻ nội bộ cho người dùng hiện tại
+    private final InternalShareService internalShareService = new InternalShareService();
 
     private String getStoragePath() {
         File folder = new File(EXTERNAL_STORAGE_DIR);
@@ -57,7 +61,7 @@ public class ViewOnlineServlet extends HttpServlet {
                 return;
             }
 
-            Share share = shareDao.getByToken(token);
+            ShareEmail share = shareDao.getByToken(token);
             if (share == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Token không tồn tại!");
                 return;
@@ -100,7 +104,11 @@ public class ViewOnlineServlet extends HttpServlet {
         }
 
         // =========================================================================
-        // 3. HIỂN THỊ TRANG PREVIEW CHO CHỦ SỞ HỮU (Cần Kiểm Tra Session Login)
+        // 3. HIỂN THỊ TRANG PREVIEW (Cần Kiểm Tra Session Login)
+        //    - Chủ sở hữu: luôn có đủ 3 quyền download/edit/print.
+        //    - 🆕 Người được CHIA SẺ NỘI BỘ: quyền được lấy đúng theo cấu hình đã
+        //      chọn khi chia sẻ (InternalShareService.getUserDocumentPermissions).
+        //      Nếu tài liệu chưa hề được chia sẻ cho người này -> 403.
         // =========================================================================
         String idParam = request.getParameter("id");
         if (idParam == null) {
@@ -125,14 +133,35 @@ public class ViewOnlineServlet extends HttpServlet {
         User currentUser = (User) session.getAttribute("user");
         boolean isOwner = (doc.getUser_id() == currentUser.getId());
 
-        if (!isOwner) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền xem trực tiếp tài liệu này!");
-            return;
+        boolean canDownload;
+        boolean canEdit;
+        boolean canPrint;
+
+        if (isOwner) {
+            // Chủ sở hữu luôn có toàn quyền
+            canDownload = true;
+            canEdit = true;
+            canPrint = true;
+        } else {
+            // 🆕 Không phải chủ sở hữu -> kiểm tra tài liệu có được chia sẻ nội bộ cho người này không
+            List<String> sharedPermissions = internalShareService.getUserDocumentPermissions(docId, currentUser.getId());
+
+            if (sharedPermissions == null || sharedPermissions.isEmpty()) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền xem trực tiếp tài liệu này!");
+                return;
+            }
+
+            canDownload = sharedPermissions.contains("download");
+            canEdit = sharedPermissions.contains("edit");
+            canPrint = sharedPermissions.contains("print");
         }
 
         request.setAttribute("document", doc);
         request.setAttribute("isOwner", isOwner);
-        request.setAttribute("shareToken", ""); // Token rỗng dành cho chủ sở hữu
+        request.setAttribute("shareToken", ""); // Token rỗng dành cho luồng đăng nhập (chủ sở hữu hoặc được chia sẻ nội bộ)
+        request.setAttribute("canDownload", canDownload);
+        request.setAttribute("canEdit", canEdit);
+        request.setAttribute("canPrint", canPrint);
 
         request.getRequestDispatcher("/WEB-INF/views/preview.jsp").forward(request, response);
     }

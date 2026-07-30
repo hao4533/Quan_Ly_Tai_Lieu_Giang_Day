@@ -42,6 +42,34 @@ public class DocumentDao extends BaseDao<Document> {
         return list;
     }
 
+    // =========================================================================
+    // 🔧 SỬA LỖI: Lấy danh sách tài liệu mà người dùng được chia sẻ.
+    //
+    // TRƯỚC ĐÂY: chạy 1 câu SQL JOIN thẳng "documents" (pool jdbc/NodesDB) với
+    // "internalShare" (pool jdbc/SharesDB) trên cùng 1 Connection của NodesDB.
+    // Nếu 2 pool này trỏ tới 2 database vật lý khác nhau thì PostgreSQL sẽ báo
+    // lỗi "relation internalshare does not exist" (bị nuốt bởi catch), khiến
+    // hàm luôn trả về danh sách rỗng -> tab "Đã được chia sẻ" không hiện gì.
+    //
+    // BÂY GIỜ: tách làm 2 bước, mỗi bước dùng đúng pool của bảng tương ứng:
+    //   1. Lấy danh sách document_id từ InternalShareDao (pool SharesDB)
+    //   2. Lấy chi tiết từng Document bằng getById() (pool NodesDB)
+    // =========================================================================
+    public List<Document> getSharedDocumentsByUserId(int userId) {
+        List<Document> list = new ArrayList<>();
+
+        InternalShareDao internalShareDao = new InternalShareDao();
+        List<Integer> sharedDocumentIds = internalShareDao.getDocumentIdsSharedWithUser(userId);
+
+        for (Integer docId : sharedDocumentIds) {
+            Document doc = getById(docId);
+            if (doc != null) {
+                list.add(doc);
+            }
+        }
+        return list;
+    }
+
     @Override
     public boolean insert(Document doc) {
         String sql = "INSERT INTO documents (original_name, physical_path, file_extension, file_size_bytes, folder_id, user_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";

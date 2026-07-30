@@ -1,9 +1,9 @@
 package controller;
 
 import dao.DocumentDao;
-import dao.ShareDao;
+import dao.ShareEmailDao;
 import model.Document;
-import model.Share;
+import model.ShareEmail;
 import model.User;
 
 import jakarta.servlet.ServletException;
@@ -18,7 +18,7 @@ import java.sql.Timestamp;
 @WebServlet(name = "PreviewServlet", urlPatterns = {"/preview"})
 public class PreviewServlet extends HttpServlet {
 
-    private final ShareDao shareDao = new ShareDao();
+    private final ShareEmailDao shareDao = new ShareEmailDao();
     private final DocumentDao documentDao = new DocumentDao();
 
     @Override
@@ -33,7 +33,7 @@ public class PreviewServlet extends HttpServlet {
         }
 
         // 1. Kiểm tra Token trong DB
-        Share share = shareDao.getByToken(token);
+        ShareEmail share = shareDao.getByToken(token);
         if (share == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Liên kết chia sẻ không tồn tại!");
             return;

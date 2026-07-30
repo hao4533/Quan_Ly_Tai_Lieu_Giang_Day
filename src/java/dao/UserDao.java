@@ -118,6 +118,37 @@ public class UserDao extends BaseDao<User> {
         return list;
     }
 
+    /**
+     * 🆕 Lấy danh sách người dùng có thể chọn để chia sẻ tài liệu nội bộ:
+     * - Chỉ lấy role = 'user' (không hiển thị admin trong modal chia sẻ)
+     * - Loại trừ chính người dùng đang đăng nhập
+     * - Sắp xếp theo email để tiện tìm kiếm trong modal
+     */
+    public List<User> getShareableUsers(int excludeUserId) {
+        List<User> list = new ArrayList<>();
+        String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE role = ? AND id <> ? ORDER BY email ASC";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, User.ROLE_USER);
+            ps.setInt(2, excludeUserId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new User(
+                            rs.getInt("id"),
+                            rs.getString("email"),
+                            rs.getString("password_hash"),
+                            rs.getString("full_name"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     @Override
     public User getById(int id) {
         String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE id = ?";

@@ -1,8 +1,8 @@
 package controller;
 
-import dao.ShareDao;
+import dao.ShareEmailDao;
 import dao.DocumentDao;
-import model.Share;
+import model.ShareEmail;
 import model.Document;
 import service.EmailService;
 
@@ -21,7 +21,7 @@ import java.util.UUID;
 public class ShareServlet extends HttpServlet {
 
     private final EmailService emailService = new EmailService();
-    private final ShareDao shareDao = new ShareDao();
+    private final ShareEmailDao shareDao = new ShareEmailDao();
     private final DocumentDao documentDao = new DocumentDao();
 
     @Override
@@ -70,7 +70,7 @@ public class ShareServlet extends HttpServlet {
             String token = UUID.randomUUID().toString();
 
             // 4. Lưu thông tin chia sẻ vào CSDL (Share Table)
-            Share share = new Share();
+            ShareEmail share = new ShareEmail();
             share.setDocumentId(documentId);
             share.setToken(token);
             share.setRecipientEmail(recipientEmail);
