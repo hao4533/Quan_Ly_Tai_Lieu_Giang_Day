@@ -10,11 +10,16 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.User;
 
-@WebServlet(urlPatterns = {"/login", "/register", "/logout", "/dashboard", "/upload"})
+@WebServlet(urlPatterns = {"/login", "/register", "/logout", "/dashboard", "/upload", "/admin"})
 public class AuthServlet extends HttpServlet {
 
     // Khớp chính xác 100% với tên JNDI đang chạy thực tế của bạn
     private static final String JNDI_NAME = "jdbc/UsersDB";
+
+    // Trả về đường dẫn trang chủ tương ứng với role của user (dùng chung cho mọi redirect sau đăng nhập)
+    private String homePathFor(User user) {
+        return user.isAdmin() ? "/admin" : "/dashboard";
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -22,18 +27,35 @@ public class AuthServlet extends HttpServlet {
         String path = request.getServletPath();
         HttpSession session = request.getSession(false);
 
-        // Chặn truy cập dashboard/upload nếu chưa đăng nhập
-        if ("/dashboard".equals(path) || "/upload".equals(path)) {
+        boolean isProtectedPage = "/dashboard".equals(path) || "/upload".equals(path) || "/admin".equals(path);
+
+        // Chặn truy cập dashboard/upload/admin nếu chưa đăng nhập
+        if (isProtectedPage) {
             if (session == null || session.getAttribute("user") == null) {
                 response.sendRedirect(request.getContextPath() + "/login");
                 return;
             }
+
+            User currentUser = (User) session.getAttribute("user");
+
+            // Chặn user thường cố vào trang quản trị /admin
+            if ("/admin".equals(path) && !currentUser.isAdmin()) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang quản trị!");
+                return;
+            }
+
+            // Ngược lại: chặn admin vào /dashboard hoặc /upload -> đưa về /admin
+            if (("/dashboard".equals(path) || "/upload".equals(path)) && currentUser.isAdmin()) {
+                response.sendRedirect(request.getContextPath() + "/admin");
+                return;
+            }
         }
 
-        // Nếu đã đăng nhập rồi mà cố vào login/register -> chuyển thẳng vào dashboard
+        // Nếu đã đăng nhập rồi mà cố vào login/register -> chuyển thẳng vào trang chủ đúng theo role
         if ("/login".equals(path) || "/register".equals(path)) {
             if (session != null && session.getAttribute("user") != null) {
-                response.sendRedirect(request.getContextPath() + "/dashboard");
+                User currentUser = (User) session.getAttribute("user");
+                response.sendRedirect(request.getContextPath() + homePathFor(currentUser));
                 return;
             }
         }
@@ -50,6 +72,9 @@ public class AuthServlet extends HttpServlet {
                 break;
             case "/upload":
                 request.getRequestDispatcher("/WEB-INF/views/upload.jsp").forward(request, response);
+                break;
+            case "/admin":
+                request.getRequestDispatcher("/WEB-INF/views/admin.jsp").forward(request, response);
                 break;
             case "/logout":
                 if (session != null) {
@@ -88,7 +113,8 @@ public class AuthServlet extends HttpServlet {
                 HttpSession session = request.getSession();
                 session.setAttribute("user", user);
                 session.setMaxInactiveInterval(30 * 60); // Hết hạn sau 30 phút
-                response.sendRedirect(request.getContextPath() + "/dashboard");
+                // Điều hướng theo role: admin -> /admin, user thường -> /dashboard
+                response.sendRedirect(request.getContextPath() + homePathFor(user));
             } else {
                 request.setAttribute("error", "Email hoặc mật khẩu không chính xác!");
                 request.setAttribute("oldEmail", email);

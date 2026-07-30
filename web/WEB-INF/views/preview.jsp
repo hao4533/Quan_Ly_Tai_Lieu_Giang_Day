@@ -13,7 +13,7 @@
     String shareToken = (String) request.getAttribute("shareToken");
 
     // IP / Host cấu hình
-    String hostIP = "192.168.1.3"; // IP máy host chạy Docker & Glassfish
+    String hostIP = "192.168.1.6"; // IP máy host chạy Docker & Glassfish
     int glassfishPort = request.getServerPort();
 
     // 1. URL nạp API OnlyOffice

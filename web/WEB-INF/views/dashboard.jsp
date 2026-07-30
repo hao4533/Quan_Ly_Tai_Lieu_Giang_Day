@@ -76,25 +76,6 @@
 
             <main class="content-container">
                 <h2 class="content-title">Dữ liệu tài khoản</h2>
-
-                <div class="section-title">Thư mục</div>
-                <div class="grid-container">
-                    <%
-                        if (folderList != null && !folderList.isEmpty()) {
-                            for (Folder f : folderList) {
-                    %>
-                    <div class="folder-card">
-                        <i class="bi bi-folder-fill" style="color: #f4b400;"></i>
-                        <span><%= f.getName()%></span>
-                    </div>
-                    <%
-                        }
-                    } else {
-                    %>
-                    <p style="color: #747775; font-size: 14px; padding-left: 10px;">Chưa có thư mục nào ở đây.</p>
-                    <% } %>
-                </div>
-
                 <div class="section-title">Tập tin</div>
                 <div class="grid-container">
                     <%
@@ -157,10 +138,6 @@
                     <button class="modal-close" onclick="toggleModal(false)">✕</button>
                 </div>
                 <div class="upload-options">
-                    <button class="upload-option-btn">
-                        <i class="bi bi-folder-plus" style="color: #5f6368;"></i>
-                        <span>Tạo thư mục mới</span>
-                    </button>
                     <button class="upload-option-btn" onclick="navigateToUpload()">
                         <i class="bi bi-cloud-arrow-up-fill" style="color: #0b57d0;"></i>
                         <span>Tải tệp lên hệ thống</span>

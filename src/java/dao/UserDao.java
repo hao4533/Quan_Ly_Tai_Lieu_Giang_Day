@@ -12,13 +12,11 @@ import model.User;
 
 public class UserDao extends BaseDao<User> {
 
-    // Constructor bắt buộc để truyền JNDI Name lên BaseDao
     public UserDao() {
         super("jdbc/UsersDB");
     }
 
     // ========== HASH MẬT KHẨU ==========
-    // Dùng SHA-256 để mã hóa mật khẩu (Xóa @Override vì đây là hàm tự định nghĩa)
     public static String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -45,7 +43,7 @@ public class UserDao extends BaseDao<User> {
 
             return ps.executeUpdate() > 0;
 
-        } catch (Exception e) { // Đổi sang Exception tổng quát vì getConnection() throws Exception
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
@@ -59,7 +57,7 @@ public class UserDao extends BaseDao<User> {
 
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next(); // true nếu tìm thấy
+                return rs.next();
             }
 
         } catch (Exception e) {
@@ -72,8 +70,8 @@ public class UserDao extends BaseDao<User> {
     public User login(String email, String password) {
         String passwordHash = hashPassword(password);
 
-        // SQL chỉ lọc duy nhất theo cột email
-        String sql = "SELECT id, email, password_hash, full_name FROM users WHERE email = ? AND password_hash = ?";
+        // SQL chỉ lọc duy nhất theo cột email (kèm role để phân luồng dashboard/admin)
+        String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE email = ? AND password_hash = ?";
 
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -86,7 +84,8 @@ public class UserDao extends BaseDao<User> {
                             rs.getInt("id"),
                             rs.getString("email"),
                             rs.getString("password_hash"),
-                            rs.getString("full_name")
+                            rs.getString("full_name"),
+                            rs.getString("role")
                     );
                 }
             }
@@ -94,16 +93,51 @@ public class UserDao extends BaseDao<User> {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null; // Không tìm thấy hoặc sai thông tin
+        return null;
     }
 
+    // Lấy toàn bộ danh sách người dùng (phục vụ trang quản trị admin.jsp)
     @Override
     public List<User> getAll() {
-        return new ArrayList<>();
+        List<User> list = new ArrayList<>();
+        String sql = "SELECT id, email, password_hash, full_name, role FROM users ORDER BY id ASC";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(new User(
+                        rs.getInt("id"),
+                        rs.getString("email"),
+                        rs.getString("password_hash"),
+                        rs.getString("full_name"),
+                        rs.getString("role")
+                ));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
     @Override
     public User getById(int id) {
+        String sql = "SELECT id, email, password_hash, full_name, role FROM users WHERE id = ?";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new User(
+                            rs.getInt("id"),
+                            rs.getString("email"),
+                            rs.getString("password_hash"),
+                            rs.getString("full_name"),
+                            rs.getString("role")
+                    );
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
@@ -113,20 +147,23 @@ public class UserDao extends BaseDao<User> {
             return false;
         }
 
-        // Đảm bảo các tên cột (email, password_hash, full_name) viết thường hoàn toàn đúng chuẩn Postgres
-        String sql = "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)";
+        // Đảm bảo các tên cột (email, password_hash, full_name, role) viết thường hoàn toàn đúng chuẩn Postgres
+        // 🔒 Luôn ép role = 'user' tại tầng DAO: tài khoản đăng ký qua register.jsp KHÔNG được phép tự phong admin,
+        // dù có bị chỉnh sửa tham số ở tầng trên. Admin chỉ được cấp thủ công trực tiếp trong DB.
+        String sql = "INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, model.getEmail());
             ps.setString(2, model.getPasswordHash());
             ps.setString(3, model.getFullName());
+            ps.setString(4, User.ROLE_USER);
 
             return ps.executeUpdate() > 0;
 
         } catch (Exception e) {
             System.err.println("BIẾN CỐ KẾT NỐI: LỖI THỰC THI TẠI TẦNG DAO");
-            e.printStackTrace(); // In ra toàn bộ StackTrace để biết chính xác lỗi sai tên bảng hay sai kiểu dữ liệu
+            e.printStackTrace();
             return false;
         }
     }
@@ -137,8 +174,38 @@ public class UserDao extends BaseDao<User> {
         return false;
     }
 
+    public boolean updateFullName(int userId, String newFullName) {
+        String sql = "UPDATE users SET full_name = ? WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newFullName.trim());
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     @Override
     public boolean delete(int id) {
-        return false;
+        return deleteUserAccount(id);
+    }
+
+    /**
+     * Xóa tài khoản người dùng một cách AN TOÀN. 🔒 Điều kiện "AND role <>
+     * 'admin'" được đặt ngay trong câu SQL: dù tầng controller có lỡ gọi nhầm,
+     * câu lệnh cũng KHÔNG BAO GIỜ xóa được tài khoản có role = 'admin'. Nếu id
+     * đó là admin, executeUpdate() sẽ trả về 0 dòng bị ảnh hưởng -> hàm trả về
+     * false.
+     */
+    public boolean deleteUserAccount(int id) {
+        String sql = "DELETE FROM users WHERE id = ? AND role <> 'admin'";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }
