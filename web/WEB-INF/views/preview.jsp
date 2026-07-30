@@ -12,8 +12,25 @@
     boolean isOwner = (isOwnerObj != null && isOwnerObj);
     String shareToken = (String) request.getAttribute("shareToken");
 
+    // =========================================================================
+    // 🆕 QUYỀN download / edit / print
+    // - Chủ sở hữu: luôn full quyền.
+    // - Được chia sẻ nội bộ (ViewOnlineServlet set sẵn canDownload/canEdit/canPrint
+    //   dựa theo cấu hình chia sẻ thực tế): dùng đúng giá trị đó.
+    // - Luồng share qua email/token (không set 3 attribute này): GIỮ NGUYÊN hành vi
+    //   cũ trước đây (download=true, edit=false, print=true) để không ảnh hưởng
+    //   tính năng chia sẻ qua email đang hoạt động.
+    // =========================================================================
+    Boolean canDownloadObj = (Boolean) request.getAttribute("canDownload");
+    Boolean canEditObj = (Boolean) request.getAttribute("canEdit");
+    Boolean canPrintObj = (Boolean) request.getAttribute("canPrint");
+
+    boolean canDownload = isOwner ? true : (canDownloadObj != null ? canDownloadObj : true);
+    boolean canEdit = isOwner ? true : (canEditObj != null ? canEditObj : false);
+    boolean canPrint = isOwner ? true : (canPrintObj != null ? canPrintObj : true);
+
     // IP / Host cấu hình
-    String hostIP = "192.168.1.6"; // IP máy host chạy Docker & Glassfish
+    String hostIP = "192.168.1.5"; // IP máy host chạy Docker & Glassfish
     int glassfishPort = request.getServerPort();
 
     // 1. URL nạp API OnlyOffice
@@ -92,14 +109,14 @@
                     "title": "<%= doc.getOriginal_name() %>",
                     "url": "<%= fileUrl %>",
                     "permissions": {
-                        "download": true,
-                        "edit": <%= isOwner %>,
-                        "print": true
+                        "download": <%= canDownload %>,
+                        "edit": <%= canEdit %>,
+                        "print": <%= canPrint %>
                     }
                 },
                 "documentType": "<%= documentType %>",
                 "editorConfig": {
-                    "mode": "<%= isOwner ? "edit" : "view" %>",
+                    "mode": "<%= canEdit ? "edit" : "view" %>",
                     "lang": "vi",
                     "callbackUrl": "<%= callbackUrl %>",
                     "user": {
